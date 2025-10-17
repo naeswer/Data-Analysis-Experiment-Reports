@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电子表格可视化 - 大数据分析实践</title>
+    <link rel="stylesheet" href="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.css" />
+    <script src="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.js"></script>
+    <script src="https://unpkg.com/x-data-spreadsheet@1.1.9/dist/locale/zh-cn.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.2rem;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2rem;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 1100px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+        }
+        
+        .panel-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .panel-body {
+            padding: 20px;
+        }
+        
+        #xspreadsheet {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        #chart-container {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            position: relative;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .chart-types {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .chart-type {
+            padding: 10px 15px;
+            background: #f1f3f4;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .chart-type:hover {
+            background: #e8eaed;
+        }
+        
+        .chart-type.active {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #27ae60;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        button.secondary {
+            background: #e74c3c;
+        }
+        
+        button.secondary:hover {
+            background: #c0392b;
+        }
+        
+        .instructions {
+            padding: 25px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .instructions h2 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 1.5rem;
+        }
+        
+        .instructions-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .instruction {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        
+        .instruction-number {
+            background: #3498db;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        #chart-placeholder {
+            text-align: center;
+            color: #7f8c8d;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>大数据分析实践 - 电子表格可视化</h1>
+            <p class="subtitle">基于开源电子表格 x-spreadsheet 添加可视化功能</p>
+        </header>
+        
+        <div class="controls">
+            <div>
+                <h3 style="margin-bottom: 10px;">选择图表类型</h3>
+                <div class="chart-types">
+                    <div class="chart-type active" data-type="bar">柱状图</div>
+                    <div class="chart-type" data-type="line">折线图</div>
+                    <div class="chart-type" data-type="pie">饼图</div>
+                    <div class="chart-type" data-type="scatter">散点图</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="update-chart">更新图表</button>
+                <button id="load-sample" class="secondary">加载示例数据</button>
+                <button id="reset-data" class="secondary">重置数据</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">数据表格</h2>
+                </div>
+                <div class="panel-body">
+                    <div id="xspreadsheet"></div>
+                    <div class="status success" id="data-status">数据加载成功</div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">数据可视化</h2>
+                </div>
+                <div class="panel-body">
+                    <div id="chart-container">
+                        <div id="chart-placeholder">
+                            <p>图表将在这里显示</p>
+                            <p>请确保表格中有数据并点击"更新图表"</p>
+                        </div>
+                    </div>
+                    <div id="chart-legend" class="legend"></div>
+                    <div class="status" id="chart-status"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h2>使用说明</h2>
+            <div class="instructions-list">
+                <div class="instruction">
+                    <div class="instruction-number">1</div>
+                    <div>第一行输入列名（如：计算机、法学、数学）</div>
+                </div>
+                <div class="instruction">
+                    <div class="instruction-number">2</div>
+                    <div>第一列输入行名（如：2017、2018、2019）</div>
+                </div>
+                <div class="instruction">
+                    <div class="instruction-number">3</div>
+                    <div>其余单元格输入数值数据</div>
+                </div>
+                <div class="instruction">
+                    <div class="instruction-number">4</div>
+                    <div>选择图表类型并点击"更新图表"按钮</div>
+                </div>
+                <div class="instruction">
+                    <div class="instruction-number">5</div>
+                    <div>如果图表不显示，检查数据格式是否正确</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 等待DOM完全加载
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化电子表格
+            x_spreadsheet.locale("zh-cn");
+            const xs = x_spreadsheet("#xspreadsheet", {
+                mode: 'edit',
+                showToolbar: true,
+                showGrid: true,
+                showContextmenu: true,
+                row: {
+                    len: 15,
+                    height: 25,
+                },
+                col: {
+                    len: 8,
+                    width: 100,
+                    indexWidth: 60,
+                    minWidth: 60,
+                }
+            });
+            
+            // 设置示例数据
+            function setSampleData() {
+                xs.cellText(0, 1, "计算机");
+                xs.cellText(0, 2, "法学");
+                xs.cellText(0, 3, "数学");
+                
+                xs.cellText(1, 0, "2017");
+                xs.cellText(1, 1, "23");
+                xs.cellText(1, 2, "15");
+                xs.cellText(1, 3, "30");
+                
+                xs.cellText(2, 0, "2018");
+                xs.cellText(2, 1, "36");
+                xs.cellText(2, 2, "26");
+                xs.cellText(2, 3, "42");
+                
+                xs.cellText(3, 0, "2019");
+                xs.cellText(3, 1, "23");
+                xs.cellText(3, 2, "33");
+                xs.cellText(3, 3, "28");
+                
+                xs.cellText(4, 0, "2020");
+                xs.cellText(4, 1, "22");
+                xs.cellText(4, 2, "10");
+                xs.cellText(4, 3, "35");
+                
+                xs.reRender();
+                updateStatus("示例数据加载成功", "success");
+            }
+            
+            // 页面加载时设置示例数据
+            setSampleData();
+            
+            // 更新状态信息
+            function updateStatus(message, type) {
+                const statusEl = document.getElementById('data-status');
+                if (statusEl) {
+                    statusEl.textContent = message;
+                    statusEl.className = `status ${type}`;
+                }
+            }
+            
+            // 更新图表状态
+            function updateChartStatus(message, type) {
+                const statusEl = document.getElementById('chart-status');
+                if (statusEl) {
+                    statusEl.textContent = message;
+                    statusEl.className = `status ${type}`;
+                }
+            }
+            
+            // 获取表格数据
+            function getSpreadsheetData() {
+                const data = [];
+                const rowHeaders = [];
+                const colHeaders = [];
+                
+                // 获取行标题（第一列）
+                for (let i = 1; i < 20; i++) {
+                    const cell = xs.cell(i, 0);
+                    if (!cell || !cell.text || cell.text.trim() === '') break;
+                    rowHeaders.push(cell.text);
+                    data.push([]);
+                }
+                
+                // 获取列标题（第一行）
+                for (let j = 1; j < 20; j++) {
+                    const cell = xs.cell(0, j);
+                    if (!cell || !cell.text || cell.text.trim() === '') break;
+                    colHeaders.push(cell.text);
+                }
+                
+                // 获取数据
+                for (let i = 1; i <= rowHeaders.length; i++) {
+                    for (let j = 1; j <= colHeaders.length; j++) {
+                        const cell = xs.cell(i, j);
+                        let value = 0;
+                        if (cell && cell.text && !isNaN(parseFloat(cell.text))) {
+                            value = parseFloat(cell.text);
+                        }
+                        data[i-1].push(value);
+                    }
+                }
+                
+                return {
+                    data: data,
+                    rowHeaders: rowHeaders,
+                    colHeaders: colHeaders
+                };
+            }
+            
+            // 颜色生成函数
+            function getColor(index) {
+                const colors = [
+                    '#3498db', '#e74c3c', '#2ecc71', '#f39c12', 
+                    '#9b59b6', '#1abc9c', '#d35400', '#c0392b'
+                ];
+                return colors[index % colors.length];
+            }
+            
+            // 安全地移除图表
+            function clearChart() {
+                const chartContainer = document.getElementById('chart-container');
+                if (chartContainer) {
+                    // 移除所有SVG元素
+                    const svgs = chartContainer.querySelectorAll('svg');
+                    svgs.forEach(svg => svg.remove());
+                    
+                    // 显示占位符
+                    const placeholder = document.getElementById('chart-placeholder');
+                    if (placeholder) {
+                        placeholder.style.display = 'block';
+                    }
+                }
+            }
+            
+            // 创建柱状图
+            function createBarChart(data, rowHeaders, colHeaders) {
+                clearChart();
+                
+                const chartContainer = document.getElementById('chart-container');
+                if (!chartContainer) {
+                    updateChartStatus("错误：图表容器不存在", "error");
+                    return;
+                }
+                
+                const placeholder = document.getElementById('chart-placeholder');
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
+                
+                const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+                const width = chartContainer.clientWidth - margin.left - margin.right;
+                const height = chartContainer.clientHeight - margin.top - margin.bottom;
+                
+                const svg = d3.select("#chart-container")
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+                
+                // 计算最大值
+                let maxValue = 0;
+                data.forEach(row => {
+                    row.forEach(value => {
+                        if (value > maxValue) maxValue = value;
+                    });
+                });
+                
+                // X轴
+                const x = d3.scaleBand()
+                    .domain(rowHeaders)
+                    .range([0, width])
+                    .padding(0.2);
+                
+                svg.append("g")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .attr("transform", "translate(-10,0)rotate(-45)")
+                    .style("text-anchor", "end");
+                
+                // Y轴
+                const y = d3.scaleLinear()
+                    .domain([0, maxValue * 1.1])
+                    .range([height, 0]);
+                
+                svg.append("g")
+                    .call(d3.axisLeft(y));
+                
+                // 分组比例尺
+                const xSubgroup = d3.scaleBand()
+                    .domain(colHeaders)
+                    .range([0, x.bandwidth()])
+                    .padding(0.05);
+                
+                // 颜色比例尺
+                const color = d3.scaleOrdinal()
+                    .domain(colHeaders)
+                    .range(colHeaders.map((d, i) => getColor(i)));
+                
+                // 绘制柱状图
+                svg.append("g")
+                    .selectAll("g")
+                    .data(data)
+                    .enter()
+                    .append("g")
+                    .attr("transform", (d, i) => `translate(${x(rowHeaders[i])},0)`)
+                    .selectAll("rect")
+                    .data((d, i) => colHeaders.map((key, j) => ({key: key, value: data[i][j]})))
+                    .enter()
+                    .append("rect")
+                    .attr("x", d => xSubgroup(d.key))
+                    .attr("y", d => y(d.value))
+                    .attr("width", xSubgroup.bandwidth())
+                    .attr("height", d => height - y(d.value))
+                    .attr("fill", d => color(d.key));
+                
+                // 添加标题
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", -10)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "16px")
+                    .style("font-weight", "bold")
+                    .text("专业招生人数统计");
+                
+                // 添加X轴标签
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height + margin.bottom - 10)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "14px")
+                    .text("年份");
+                
+                // 添加Y轴标签
+                svg.append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -margin.left + 15)
+                    .attr("x", -height / 2)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "14px")
+                    .text("人数");
+                
+                // 创建图例
+                createLegend(colHeaders, color);
+                
+                updateChartStatus("柱状图创建成功", "success");
+            }
+            
+            // 创建折线图
+            function createLineChart(data, rowHeaders, colHeaders) {
+                clearChart();
+                
+                const chartContainer = document.getElementById('chart-container');
+                if (!chartContainer) {
+                    updateChartStatus("错误：图表容器不存在", "error");
+                    return;
+                }
+                
+                const placeholder = document.getElementById('chart-placeholder');
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
+                
+                const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+                const width = chartContainer.clientWidth - margin.left - margin.right;
+                const height = chartContainer.clientHeight - margin.top - margin.bottom;
+                
+                const svg = d3.select("#chart-container")
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+                
+                // 计算最大值
+                let maxValue = 0;
+                data.forEach(row => {
+                    row.forEach(value => {
+                        if (value > maxValue) maxValue = value;
+                    });
+                });
+                
+                // X轴
+                const x = d3.scalePoint()
+                    .domain(rowHeaders)
+                    .range([0, width]);
+                
+                svg.append("g")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(d3.axisBottom(x));
+                
+                // Y轴
+                const y = d3.scaleLinear()
+                    .domain([0, maxValue * 1.1])
+                    .range([height, 0]);
+                
+                svg.append("g")
+                    .call(d3.axisLeft(y));
+                
+                // 颜色比例尺
+                const color = d3.scaleOrdinal()
+                    .domain(colHeaders)
+                    .range(colHeaders.map((d, i) => getColor(i)));
+                
+                // 折线生成器
+                const line = d3.line()
+                    .x((d, i) => x(rowHeaders[i]))
+                    .y(d => y(d))
+                    .curve(d3.curveMonotoneX);
+                
+                // 绘制折线
+                colHeaders.forEach((header, j) => {
+                    const values = data.map(row => row[j]);
+                    
+                    svg.append("path")
+                        .datum(values)
+                        .attr("fill", "none")
+                        .attr("stroke", color(header))
+                        .attr("stroke-width", 2)
+                        .attr("d", line);
+                    
+                    // 添加数据点
+                    svg.selectAll(`.dot-${j}`)
+                        .data(values)
+                        .enter()
+                        .append("circle")
+                        .attr("cx", (d, i) => x(rowHeaders[i]))
+                        .attr("cy", d => y(d))
+                        .attr("r", 4)
+                        .attr("fill", color(header));
+                });
+                
+                // 添加标题
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", -10)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "16px")
+                    .style("font-weight", "bold")
+                    .text("专业招生趋势");
+                
+                // 添加X轴标签
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height + margin.bottom - 10)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "14px")
+                    .text("年份");
+                
+                // 添加Y轴标签
+                svg.append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -margin.left + 15)
+                    .attr("x", -height / 2)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "14px")
+                    .text("人数");
+                
+                // 创建图例
+                createLegend(colHeaders, color);
+                
+                updateChartStatus("折线图创建成功", "success");
+            }
+            
+            // 创建饼图
+            function createPieChart(data, rowHeaders, colHeaders) {
+                clearChart();
+                
+                const chartContainer = document.getElementById('chart-container');
+                if (!chartContainer) {
+                    updateChartStatus("错误：图表容器不存在", "error");
+                    return;
+                }
+                
+                const placeholder = document.getElementById('chart-placeholder');
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
+                
+                const width = chartContainer.clientWidth;
+                const height = chartContainer.clientHeight;
+                const radius = Math.min(width, height) / 2 - 40;
+                
+                const svg = d3.select("#chart-container")
+                    .append("svg")
+                    .attr("width", width)
+                    .attr("height", height)
+                    .append("g")
+                    .attr("transform", `translate(${width/2},${height/2})`);
+                
+                // 计算总和
+                const sums = [];
+                for (let j = 0; j < colHeaders.length; j++) {
+                    let sum = 0;
+                    for (let i = 0; i < rowHeaders.length; i++) {
+                        sum += data[i][j];
+                    }
+                    sums.push(sum);
+                }
+                
+                // 颜色比例尺
+                const color = d3.scaleOrdinal()
+                    .domain(colHeaders)
+                    .range(colHeaders.map((d, i) => getColor(i)));
+                
+                // 饼图生成器
+                const pie = d3.pie()
+                    .value(d => d.value);
+                
+                const arc = d3.arc()
+                    .innerRadius(0)
+                    .outerRadius(radius);
+                
+                const data_ready = pie(colHeaders.map((d, i) => {
+                    return {name: d, value: sums[i]};
+                }));
+                
+                // 绘制饼图
+                svg.selectAll('path')
+                    .data(data_ready)
+                    .enter()
+                    .append('path')
+                    .attr('d', arc)
+                    .attr('fill', d => color(d.data.name))
+                    .attr("stroke", "white")
+                    .style("stroke-width", "2px");
+                
+                // 添加标签
+                svg.selectAll('text')
+                    .data(data_ready)
+                    .enter()
+                    .append('text')
+                    .text(d => `${d.data.name}: ${d.data.value}`)
+                    .attr("transform", d => `translate(${arc.centroid(d)})`)
+                    .style("text-anchor", "middle")
+                    .style("font-size", "12px");
+                
+                // 添加标题
+                svg.append("text")
+                    .attr("x", 0)
+                    .attr("y", -height/2 + 20)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "16px")
+                    .style("font-weight", "bold")
+                    .text("专业总招生人数比例");
+                
+                // 创建图例
+                createLegend(colHeaders, color);
+                
+                updateChartStatus("饼图创建成功", "success");
+            }
+            
+            // 创建散点图
+            function createScatterChart(data, rowHeaders, colHeaders) {
+                clearChart();
+                
+                const chartContainer = document.getElementById('chart-container');
+                if (!chartContainer) {
+                    updateChartStatus("错误：图表容器不存在", "error");
+                    return;
+                }
+                
+                const placeholder = document.getElementById('chart-placeholder');
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
+                
+                const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+                const width = chartContainer.clientWidth - margin.left - margin.right;
+                const height = chartContainer.clientHeight - margin.top - margin.bottom;
+                
+                const svg = d3.select("#chart-container")
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+                
+                // 计算最大值
+                let maxValue = 0;
+                data.forEach(row => {
+                    row.forEach(value => {
+                        if (value > maxValue) maxValue = value;
+                    });
+                });
+                
+                // X轴
+                const x = d3.scalePoint()
+                    .domain(rowHeaders)
+                    .range([0, width]);
+                
+                svg.append("g")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(d3.axisBottom(x));
+                
+                // Y轴
+                const y = d3.scaleLinear()
+                    .domain([0, maxValue * 1.1])
+                    .range([height, 0]);
+                
+                svg.append("g")
+                    .call(d3.axisLeft(y));
+                
+                // 颜色比例尺
+                const color = d3.scaleOrdinal()
+                    .domain(colHeaders)
+                    .range(colHeaders.map((d, i) => getColor(i)));
+                
+                // 绘制散点
+                colHeaders.forEach((header, j) => {
+                    const values = data.map((row, i) => {
+                        return { x: rowHeaders[i], y: row[j], name: header };
+                    });
+                    
+                    svg.selectAll(`.dot-${j}`)
+                        .data(values)
+                        .enter()
+                        .append("circle")
+                        .attr("cx", d => x(d.x))
+                        .attr("cy", d => y(d.y))
+                        .attr("r", 6)
+                        .attr("fill", color(header));
+                });
+                
+                // 添加标题
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", -10)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "16px")
+                    .style("font-weight", "bold")
+                    .text("专业招生分布");
+                
+                // 添加X轴标签
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height + margin.bottom - 10)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "14px")
+                    .text("年份");
+                
+                // 添加Y轴标签
+                svg.append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -margin.left + 15)
+                    .attr("x", -height / 2)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "14px")
+                    .text("人数");
+                
+                // 创建图例
+                createLegend(colHeaders, color);
+                
+                updateChartStatus("散点图创建成功", "success");
+            }
+            
+            // 创建图例
+            function createLegend(items, colorScale) {
+                const legend = document.getElementById("chart-legend");
+                if (!legend) return;
+                
+                legend.innerHTML = "";
+                
+                items.forEach(item => {
+                    const legendItem = document.createElement("div");
+                    legendItem.className = "legend-item";
+                    
+                    const colorBox = document.createElement("div");
+                    colorBox.className = "legend-color";
+                    colorBox.style.backgroundColor = colorScale(item);
+                    
+                    const label = document.createElement("span");
+                    label.textContent = item;
+                    
+                    legendItem.appendChild(colorBox);
+                    legendItem.appendChild(label);
+                    legend.appendChild(legendItem);
+                });
+            }
+            
+            // 更新图表
+            function updateChart() {
+                try {
+                    const { data, rowHeaders, colHeaders } = getSpreadsheetData();
+                    const chartType = document.querySelector(".chart-type.active").dataset.type;
+                    
+                    if (data.length === 0 || rowHeaders.length === 0 || colHeaders.length === 0) {
+                        updateChartStatus("错误：请确保表格中有数据，并且第一行和第一列有标题", "error");
+                        return;
+                    }
+                    
+                    switch(chartType) {
+                        case "bar":
+                            createBarChart(data, rowHeaders, colHeaders);
+                            break;
+                        case "line":
+                            createLineChart(data, rowHeaders, colHeaders);
+                            break;
+                        case "pie":
+                            createPieChart(data, rowHeaders, colHeaders);
+                            break;
+                        case "scatter":
+                            createScatterChart(data, rowHeaders, colHeaders);
+                            break;
+                    }
+                } catch (error) {
+                    updateChartStatus(`图表创建错误: ${error.message}`, "error");
+                    console.error("图表创建错误:", error);
+                }
+            }
+            
+            // 事件监听
+            document.getElementById("update-chart").addEventListener("click", updateChart);
+            
+            document.getElementById("load-sample").addEventListener("click", function() {
+                setSampleData();
+                updateChart();
+            });
+            
+            document.getElementById("reset-data").addEventListener("click", function() {
+                if (confirm("确定要重置所有数据吗？")) {
+                    xs.resetData();
+                    updateStatus("数据已重置", "success");
+                    updateChartStatus("", "");
+                    clearChart();
+                    document.getElementById("chart-legend").innerHTML = "";
+                }
+            });
+            
+            // 图表类型切换
+            document.querySelectorAll(".chart-type").forEach(type => {
+                type.addEventListener("click", function() {
+                    document.querySelectorAll(".chart-type").forEach(t => t.classList.remove("active"));
+                    this.classList.add("active");
+                });
+            });
+            
+            // 初始加载时创建图表
+            setTimeout(updateChart, 500);
+        });
+    </script>
+</body>
+</html>
